@@ -1,57 +1,51 @@
 "use client";
 
-import { WALLET_ADAPTERS, IProvider } from "@web3auth/base";
-import { useState, useEffect } from "react";
-import { web3auth, openloginAdapter } from "../../constants/web3Auth";
+import { WALLET_ADAPTERS } from "@web3auth/base";
+import { useState, useEffect, FC } from "react";
 import Link from "next/link";
+import { Web3Auth } from "@/app/interface";
 
-web3auth.configureAdapter(openloginAdapter);
-
-export const LogInButton = () => {
-  const [provider, setProvider] = useState<IProvider | null>(null);
+export const LogInButton: FC<Web3Auth> = ({
+  web3Auth,
+  setWeb3Auth,
+  provider,
+  setProvider,
+}) => {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [userInfo, setUserInfo] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    // setIsLoading(true);
-    const init = async () => {
-      try {
-        await web3auth.init();
-        setProvider(web3auth.provider);
+    if (provider && web3Auth?.connected) {
+      const getUserInfo = async () => {
+        const userInfo = await web3Auth.getUserInfo();
+        setUserInfo(userInfo.email);
+      };
+      getUserInfo();
 
-        if (web3auth.connected) {
-          setLoggedIn(true);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-      //   setIsLoading(false);
-    };
-
-    init();
-  }, []);
-
-  // useEffect(() => {
-
-  //   getUserInfo();
-  // }, [userInfo])
+      setLoggedIn(true);
+    }
+  }, [web3Auth, provider]);
 
   const login = async () => {
     setIsLoading(true);
+
+    if (!web3Auth) {
+      console.log("Can not login! Wallet is not connected");
+      return;
+    }
     try {
-      const web3authProvider = await web3auth.connectTo(
+      const web3authProvider = await web3Auth.connectTo(
         WALLET_ADAPTERS.OPENLOGIN,
         {
           loginProvider: "twitter",
         }
       );
       setProvider(web3authProvider);
-      console.log(web3auth);
-      if (web3auth.connected) {
+
+      if (web3Auth.connected) {
         setLoggedIn(true);
         setIsLoading(false);
-        await getUserInfo();
       }
     } catch (error) {
       console.error(error);
@@ -59,38 +53,29 @@ export const LogInButton = () => {
   };
 
   const logout = async () => {
-    await web3auth.logout();
+    if (!web3Auth) {
+      console.log("wallet not connected");
+      return;
+    }
+    await web3Auth.logout();
     setProvider(null);
     setLoggedIn(false);
-  };
-
-  const getUserInfo = async () => {
-    const userInfo = await web3auth.getUserInfo();
-    setUserInfo(userInfo.email);
-    console.log(userInfo.email);
   };
 
   return (
     <>
       {loggedIn ? (
         <details className="dropdown">
-          <summary className="btn">
-            {/* Signed in */}
-            {userInfo}
-          </summary>
+          <summary className="btn">{userInfo}</summary>
           <ul className="shadow menu dropdown-content w-52">
             <li>
-              <Link href="/">My Profile</Link>
+              <Link href="/myprofile">My Profile</Link>
             </li>
             <li>
-              <Link href="/" onClick={() => console.log(userInfo)}>
+              <Link href="/" onClick={() => console.log(web3Auth)}>
                 My Wallet
               </Link>
             </li>
-            <li>
-              <a onClick={() => getUserInfo()}>set info</a>
-            </li>
-
             <li>
               <a onClick={logout}>Log out</a>
             </li>
